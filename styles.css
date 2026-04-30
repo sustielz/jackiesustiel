@@ -15,8 +15,12 @@ button {
   border: #373b40 solid 1px;
 }
 
-button:active {
+button:hover {
   background-color: #f28b30;
+}
+
+button:active {
+  background-color: ##f29429;
 }
 
 .overlay {
