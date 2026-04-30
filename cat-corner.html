@@ -3,13 +3,22 @@
 
 <head>
 	<link rel="stylesheet" href="styles.css">
+	<link rel="stylesheet" href="cat-corner.css">
 </head>
 
 <title>
 	Jackie's Website
 </title>
 <body>
+
+
+<div id="overlay" class="overlay">
+  <img id="overlay-img" class= "overlay-img" style="width: 80%; height: 80%; position: fixed;  opacity: 1.0"> </img>
+</div>
+
+
 <div class="topnav"> 
+  <a href="index.html">Home</a>
   <a href="#">About Me</a>
   <a href="#">CV</a>
   <a href="#">Fluid Demos</a>
@@ -18,53 +27,161 @@
 </div>
 
 <div class="content">
-  <h2> An Array of Cat Photos</h2>
-  <button id="cat-button" onclick="generateCats()"> Generate Cats </button>
-  <div class="image-grid" id="catgrid"> </div>
+  <div style="display: flex; justify-content: space-between;">
+    <h2> Cat Photo Selection Gallery  
+      <button class='cat-button' id="makecat-button" style="margin-left:10px;"> More Cat </button>
+   </h2>
+  
+   <div class="show-me-settings" >
+      <i> Show Me: </i>
+      <input type="checkbox" id="show-me-unseen" name="Only New Cats"> Only New Cats </input> 
+      <input type="checkbox" id="show-me-unsaved"> Only Unsaved Cats </input>
+      <input type="checkbox" id="show-me-saved"> Only Saved Cats </input>  
+    </div>
+  </div>
+  <i style="margin-left: 30px;"> Select cats to save. Click above to reroll. Click saved cats below to view fullscreen. </i>
 
+  
+
+    
+
+
+
+  <div class="image-grid" id="catgrid" style="grid-template-columns: auto auto auto auto auto; margin-bottom: 30px;"> </div>
+
+
+</div>
+<div class="content">
+  <h3 style="margin-bottom: -10px;"> Saved Cat Photos      
+    <button class='cat-button' id="saveallcats-button"> Save All </button>
+    <button class='cat-button' id="resetcat-button"> Reset Cat History </button>   
+  </h3>
+  <i> click to view </i>
+  <div class="image-grid" id="cathistgrid" style="grid-template-columns: repeat(13, 1fr);"> </div>
+</div>
 <div class="footer">
   <p>Footer</p>
 </div>
 
 <script>
+let ncol = 5;
+let nrow = 2;
 
 let cat_urls = [];
-async function loadCats() {
-  response = await fetch("./cat_urls.json");
-  cat_urls = await response.json();
+let indices_current = [];
+let indices_seen = [];
+let indices_saved = [];
+
+async function makeCatTiles() {
+    response = await fetch("./cat_urls.json");
+    cat_urls = await response.json();
+    for (i=0; i<ncol; i++) {
+       for (j=0; j<nrow; j++) {
+        /*   const newElement = document.createElement("image-item"); */
+           const newElement = new Image();
+           newElement.className = "image-item";
+           newElement.id = `cat ${i}, ${j}`;
+           newElement.innerHTML = newElement.id;
+           newElement.addEventListener("click", saveCat);
+           await catgrid.appendChild(newElement);
+           console.log(newElement.className);
+        }
+    }     
 }
 
-  
-async function generateCats() {
-   catgrid = document.getElementById("catgrid");
-   console.log(catgrid.childElementCount);
-   if (catgrid.childElementCount < 1) {
-      await loadCats();
-      console.log(cat_urls[0]);
-      for (i=0; i<3; i++) {
-         for (j=0; j<2; j++) {
-          /*   const newElement = document.createElement("image-item"); */
-             const newElement = new Image();
-             newElement.className = "image-item";
-             newElement.id = `cat ${i}, ${j}`;
-             newElement.innerHTML = newElement.id;
-             await catgrid.appendChild(newElement);
-             console.log(newElement.className);
-          }
-      }     
-  } 
-  for (i=0; i<3; i++) {
-    for (j=0; j<2; j++) {
-      cat_tile = document.getElementById(`cat ${i}, ${j}`);
-      index =  Math.floor(Math.random()*cat_urls.length);
-      cat_tile.src = cat_urls[index];
+
+async function generateCats(event) {
+    catgrid = document.getElementById("catgrid");
+    if (catgrid.childElementCount < 1) { 
+        await makeCatTiles();
+    } 
+    
+    document.getElementById("makecat-button").disabled = true;
+    indices_exclude = [];
+    if ( document.getElementById("show-me-unseen").checked ) {
+        indices_exclude = [...indices_exclude, ...indices_seen]
     }
-  } 
+    if ( document.getElementById("show-me-unsaved").checked ) {
+        indices_exclude = [...indices_exclude, ...indices_saved]
+    }
+    promises = [];
+    for (i=0; i<ncol; i++) {
+        for (j=0; j<nrow; j++) {
+            cat_tile = document.getElementById(`cat ${i}, ${j}`);
+            num_calls = 0;
+            do { 
+                index = Math.floor(Math.random()*cat_urls.length);
+                num_calls++;
+                if (num_calls > 200) { break; }
+            } 
+            while (indices_exclude.includes(index) && num_calls < 100);
+       /*     console.log('nio', num_calls, indices_current, index); */
+            if (num_calls === 100) { 
+                cat_tile.src = "https://art.pixilart.com/b09197d64f69d63.png";
+                continue;
+            }
+            indices_exclude.push(index);
+            indices_seen.push(index);
+            promises.push( new Promise( (res) => {
+              cat_tile.addEventListener("load", () => {
+                res();
+              }, {once: true});
+              cat_tile.src = cat_urls[index];
+              cat_tile.index = index;
+            } ));
+        }
+    }
+    await Promise.all(promises);
+    document.getElementById("makecat-button").disabled = false;
+  }
 
+
+
+
+
+
+
+function saveCat(event) {
+  if (indices_saved.includes(event.target.index)) { return; }
+  histgrid = document.getElementById("cathistgrid");
+  const newElement = new Image();
+  newElement.className = "image-item";
+  newElement.src = event.target.src;
+  newElement.index = event.target.index;
+  newElement.addEventListener("click", toggleOverlay);
+  indices_saved.push(event.target.index);
+ /* newElement.id = `catsave ${i}, ${j}`; */
+/*  newElement.innerHTML = newElement.id; */
+ histgrid.appendChild(newElement);
 }
-          
-       
-  
+
+function toggleOverlay(event) {
+  overlay = document.getElementById("overlay");
+  img = document.getElementById("overlay-img");
+  console.log(overlay);
+  console.log(overlay.style.display==="none");
+  if (overlay.style.display==="block") {       
+      overlay.style.display = "none";
+      img.src = "";
+  } else {
+      overlay.style.display="block";
+      img.src = event.target.src;
+  }
+      
+}
+
+
+document.addEventListener('DOMContentLoaded', generateCats);
+document.getElementById("makecat-button").addEventListener("click", generateCats);
+document.getElementById("resetcat-button").addEventListener("click", () => { 
+  indices_seen = []; 
+} );
+document.getElementById("saveallcats-button").disabled = true;
+document.getElementById("show-me-saved").disabled = true;
+document.getElementById("overlay-img").addEventListener("click", toggleOverlay);
+
+
+
 
 </script>
 </html>
