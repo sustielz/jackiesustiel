@@ -4,6 +4,7 @@
 <head>
 	<link rel="stylesheet" href="styles.css">
 	<link rel="stylesheet" href="cat-corner.css">
+	<script src="https://kit.fontawesome.com/79e7ff156c.js" crossorigin="anonymous"></script>
 </head>
 
 <title>
@@ -13,17 +14,17 @@
 
 
 <div id="overlay" class="overlay">
-  <img id="overlay-img" class= "overlay-img" style="width: 80%; height: 80%; position: fixed;  opacity: 1.0"> </img>
+  <img id="overlay-img" class= "overlay-img"> </img>
 </div>
 
 
-<div class="topnav"> 
+<div class="topnav" id="topnav"> 
   <a href="index.html">Home</a>
-  <a href="#">About Me</a>
-  <a href="#">CV</a>
+  <a href="resume.html">Publications and CV</a>
   <a href="#">Fluid Demos</a>
   <a href="#">Miscellanious Facts</a>
-  <a href="#">Cat Corner</a>
+  <a href="#">The Pigeon Hole</a>
+  <a href="cat-corner.html">Cat Corner</a>
 </div>
 
 <div class="content">
@@ -31,16 +32,26 @@
     <h2> Cat Photo Selection Gallery  
       <button class='cat-button' id="makecat-button" style="margin-left:10px;"> More Cat </button>
    </h2>
+   
   
-   <div class="show-me-settings" >
-      <i> Show Me: </i>
-      <input type="checkbox" id="show-me-unseen" name="Only New Cats"> Only New Cats </input> 
-      <input type="checkbox" id="show-me-unsaved"> Only Unsaved Cats </input>
-      <input type="checkbox" id="show-me-saved"> Only Saved Cats </input>  
-    </div>
+   <div class="show-me-settings">
+      <b> Show Me: </b>
+      <input type="checkbox" id="show-me-unseen"> <i> Only New Cats </i> </input> 
+      <input type="checkbox" id="show-me-best"> <i> Only Best Cats </i> </input>
+            <input type="checkbox" id="show-me-either"> <i> Either Cat </i> </input>
+      <h3 class="slideContainer">
+           Salem 
+           <input type="range" min="0" max="100" value="50" class="whichCatSlider" id="whichCat">
+           Samson
+      </h3>
+   </div>
   </div>
-  <i style="margin-left: 30px;"> Select cats to save. Click above to reroll. Click saved cats below to view fullscreen. </i>
-
+  
+  
+   <i class="degentext">
+  rawr x3 nya~ miau miau mrrrrp .. wehhhhhhh >< eeby deeby meowmeowmeow prrrrrt nyaaa haiiiiii :3c sksksk mlem mrrraowwwww
+      <i class="degentip"> I asked chatGPT to give me generic "degenerate trans catgirl noises." This was the only use of AI in the Cat Corner. </i>
+ </i>
   
 
     
@@ -52,15 +63,14 @@
 
 </div>
 <div class="content">
-  <h3 style="margin-bottom: -10px;"> Saved Cat Photos      
+  <h3 style="margin-bottom: -10px;"> Starred Cat Photos      
     <button class='cat-button' id="saveallcats-button"> Save All </button>
     <button class='cat-button' id="resetcat-button"> Reset Cat History </button>   
   </h3>
-  <i> click to view </i>
   <div class="image-grid" id="cathistgrid" style="grid-template-columns: repeat(13, 1fr);"> </div>
 </div>
 <div class="footer">
-  <p>Footer</p>
+  <p>Science! Pigeons! Trans rights!</p>
 </div>
 
 <script>
@@ -68,91 +78,116 @@ let ncol = 5;
 let nrow = 2;
 
 let cat_urls = [];
+let nSam = 0;
 let indices_current = [];
 let indices_seen = [];
 let indices_saved = [];
 
+// Fetch cat photo URLS and make initial cat tile array
 async function makeCatTiles() {
-    response = await fetch("./cat_urls.json");
-    cat_urls = await response.json();
+    response = await fetch("./cat_urls_samson.json");
+    urls_samson = await response.json();
+    response = await fetch("./cat_urls_salem.json");
+    urls_salem = await response.json();
+    nSam = urls_samson.length;
+    
+    cat_urls = [...urls_samson, ...urls_salem];
+    
+    
     for (i=0; i<ncol; i++) {
-       for (j=0; j<nrow; j++) {
-        /*   const newElement = document.createElement("image-item"); */
-           const newElement = new Image();
-           newElement.className = "image-item";
-           newElement.id = `cat ${i}, ${j}`;
-           newElement.innerHTML = newElement.id;
-           newElement.addEventListener("click", saveCat);
-           await catgrid.appendChild(newElement);
-           console.log(newElement.className);
+       for (j=0; j<nrow; j++) {           
+           // container for image and icon
+           const tile = document.createElement("div");
+           tile.style.position = "relative";
+           tile.className = "image-item";
+           // image
+           const im = new Image();
+           im.className = "cattile-image";
+           im.id = `cat ${i}, ${j}`;
+           im.addEventListener("click", toggleOverlay);
+           // icon
+           fav = document.createElement("i");
+           fav.classList.add('fa-solid', 'fa-star', 'cattile-icon')
+           tile.addEventListener("click", clickTileIcon);
+   
+           await tile.appendChild(im);
+           await tile.appendChild(fav);
+           await catgrid.appendChild(tile);
+           console.log(tile.className);
         }
     }     
 }
 
-
+// Update tiles with new cats. Option to exclude previous cats.
 async function generateCats(event) {
     catgrid = document.getElementById("catgrid");
     if (catgrid.childElementCount < 1) { 
         await makeCatTiles();
-    } 
+    }
     
-    document.getElementById("makecat-button").disabled = true;
-    indices_exclude = [];
+    function rollSamson() { return Math.floor(Math.random()*nSam); }
+    function rollSalem() { 
+      return nSam + Math.floor(Math.random()*(cat_urls.length - nSam)); 
+    }
+    
+    indices_reroll = [];
     if ( document.getElementById("show-me-unseen").checked ) {
-        indices_exclude = [...indices_exclude, ...indices_seen]
+        indices_reroll = [...indices_reroll, ...indices_seen]
     }
-    if ( document.getElementById("show-me-unsaved").checked ) {
-        indices_exclude = [...indices_exclude, ...indices_saved]
-    }
-    promises = [];
+    
+    // disable refresh until all tiles finish loading
+    document.getElementById("makecat-button").disabled = true;
+    promises = [];  
     for (i=0; i<ncol; i++) {
-        for (j=0; j<nrow; j++) {
-            cat_tile = document.getElementById(`cat ${i}, ${j}`);
-            num_calls = 0;
-            do { 
-                index = Math.floor(Math.random()*cat_urls.length);
-                num_calls++;
-                if (num_calls > 200) { break; }
-            } 
-            while (indices_exclude.includes(index) && num_calls < 100);
-       /*     console.log('nio', num_calls, indices_current, index); */
-            if (num_calls === 100) { 
-                cat_tile.src = "https://art.pixilart.com/b09197d64f69d63.png";
-                continue;
-            }
-            indices_exclude.push(index);
-            indices_seen.push(index);
-            promises.push( new Promise( (res) => {
-              cat_tile.addEventListener("load", () => {
-                res();
-              }, {once: true});
-              cat_tile.src = cat_urls[index];
-              cat_tile.index = index;
-            } ));
+      for (j=0; j<nrow; j++) {
+        im = document.getElementById(`cat ${i}, ${j}`);
+        
+    //  Roll for new image of either Samson or Salem, depending on slider
+        samChance = document.getElementById("whichCat").value;
+
+        roll = (Math.random()*100 < samChance) ? rollSamson : rollSalem;
+        // roll = rollSamson;
+        for (num_calls=0; num_calls<150; num_calls++) {
+            index = roll();
+            if (!indices_reroll.includes(index)) { break; }
+        } 
+        if (num_calls === 150) { 
+            im.src = "https://art.pixilart.com/b09197d64f69d63.png";
+            continue;
         }
+        indices_reroll.push(index);
+        indices_seen.push(index);
+        promises.push( new Promise( (res) => {
+          im.addEventListener("load", () => {
+            res();
+          }, {once: true});
+          im.index = index;
+          im.src = cat_urls[index];
+        } ));
+      }
     }
     await Promise.all(promises);
     document.getElementById("makecat-button").disabled = false;
-  }
+  } 
+
+// Handle tile icon click explicitly, since css weirdness doesnt let click go through automatically.
+function clickTileIcon(event) {
+  im = event.currentTarget.children[0];
+  icon = event.currentTarget.children[1];
+  if (icon.matches(':hover')) {  saveCat(im); }
+}
 
 
-
-
-
-
-
-function saveCat(event) {
-  if (indices_saved.includes(event.target.index)) { return; }
+function saveCat(im) {
+  if (indices_saved.includes(im.index)) { return; }
   histgrid = document.getElementById("cathistgrid");
-  const newElement = new Image();
-  newElement.className = "image-item";
-  newElement.src = event.target.src;
-  newElement.index = event.target.index;
-  newElement.addEventListener("click", toggleOverlay);
-  indices_saved.push(event.target.index);
- /* newElement.id = `catsave ${i}, ${j}`; */
-/*  newElement.innerHTML = newElement.id; */
- histgrid.appendChild(newElement);
+  const tile = new Image();
+  tile.className = "image-item";
+  tile.src       = im.src; 
+  tile.index     = im.index;
+  tile.addEventListener("click", toggleOverlay);
+  indices_saved.push(im.index);
+  histgrid.appendChild(tile);
 }
 
 function toggleOverlay(event) {
@@ -166,8 +201,7 @@ function toggleOverlay(event) {
   } else {
       overlay.style.display="block";
       img.src = event.target.src;
-  }
-      
+  }    
 }
 
 
@@ -177,8 +211,9 @@ document.getElementById("resetcat-button").addEventListener("click", () => {
   indices_seen = []; 
 } );
 document.getElementById("saveallcats-button").disabled = true;
-document.getElementById("show-me-saved").disabled = true;
-document.getElementById("overlay-img").addEventListener("click", toggleOverlay);
+document.getElementById("show-me-best").disabled = true;
+document.getElementById("show-me-either").disabled = true;
+document.getElementById("overlay").addEventListener("click", toggleOverlay);
 
 
 
